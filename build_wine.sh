@@ -138,12 +138,12 @@ build_with_bwrap () {
 		shift
 	fi
 
-    bwrap --ro-bind "${BOOTSTRAP_PATH}" / --dev /dev --ro-bind /sys /sys \
-		  --proc /proc --tmpfs /tmp --tmpfs /home --tmpfs /run --tmpfs /var \
-		  --tmpfs /mnt --tmpfs /media --bind "${BUILD_DIR}" "${BUILD_DIR}" \
-		  --bind-try "${XDG_CACHE_HOME}"/ccache "${XDG_CACHE_HOME}"/ccache \
-		  --bind-try "${HOME}"/.ccache "${HOME}"/.ccache \
-		  --setenv PATH "/opt/Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r0.g819a6ec2e-Gcc-11.4.1/bin:/usr/local/bin:/bin:/sbin:/usr/bin:/usr/sbin" \
+		bwrap --ro-bind "${BOOTSTRAP_PATH}" / --dev /dev --ro-bind /sys /sys \
+			--proc /proc --tmpfs /tmp --tmpfs /home --tmpfs /run --tmpfs /var \
+			--tmpfs /mnt --tmpfs /media --bind "${BUILD_DIR}" "${BUILD_DIR}" \
+			--bind-try "${XDG_CACHE_HOME}"/ccache "${XDG_CACHE_HOME}"/ccache \
+			--bind-try "${HOME}"/.ccache "${HOME}"/.ccache \
+			--setenv PATH "/opt/Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r0.g819a6ec2e-Gcc-11.4.1/bin:/usr/local/bin:/bin:/sbin:/usr/bin:/usr/sbin" \
 			"$@"
 }
 
@@ -174,10 +174,18 @@ fi
 
 # Stable and Development versions have a different source code location
 # Determine if the chosen version is stable or development
-if [ "$(echo "$WINE_VERSION" | cut -c3)" = "0" ]; then
-	WINE_URL_VERSION=$(echo "$WINE_VERSION" | cut -c1).0
+if [ "$(echo "$WINE_VERSION" | cut -c3)" = "." ]; then
+	if [ "$(echo "$WINE_VERSION" | cut -c4)" = "0" ]; then
+		WINE_URL_VERSION=$(echo "$WINE_VERSION" | cut -c1,2).0
+	else
+		WINE_URL_VERSION=$(echo "$WINE_VERSION" | cut -c1,2).x
+	fi
 else
-	WINE_URL_VERSION=$(echo "$WINE_VERSION" | cut -c1).x
+	if [ "$(echo "$WINE_VERSION" | cut -c3)" = "0" ]; then
+		WINE_URL_VERSION=$(echo "$WINE_VERSION" | cut -c1).0
+	else
+		WINE_URL_VERSION=$(echo "$WINE_VERSION" | cut -c1).x
+	fi
 fi
 
 rm -rf "${BUILD_DIR}"
@@ -190,7 +198,7 @@ echo "Preparing Wine for compilation"
 echo
 
 if [ -n "${CUSTOM_SRC_PATH}" ]; then
-  echo "Building from ${CUSTOM_SRC_PATH}"
+	echo "Building from ${CUSTOM_SRC_PATH}"
 
 	is_url="$(echo "${CUSTOM_SRC_PATH}" | head -c 6)"
 
@@ -236,7 +244,7 @@ else
 		BUILD_NAME="${WINE_VERSION}-$(git -C wine rev-parse --short HEAD)"
 	else
 		BUILD_NAME="${WINE_VERSION}"
-
+		echo "Getting sources from https://dl.winehq.org/wine/source/${WINE_URL_VERSION}/wine-${WINE_VERSION}.tar.xz"
 		wget -q --show-progress "https://dl.winehq.org/wine/source/${WINE_URL_VERSION}/wine-${WINE_VERSION}.tar.xz"
 
 		tar xf "wine-${WINE_VERSION}.tar.xz"
@@ -273,7 +281,7 @@ else
 		fi
 
 		if [ "${EXPERIMENTAL_WOW64}" = "true" ]; then
-  			if ! grep Disabled "${BUILD_DIR}"/wine-staging-"${WINE_VERSION}"/patches/ntdll-Syscall_Emulation/definition 1>/dev/null; then
+				if ! grep Disabled "${BUILD_DIR}"/wine-staging-"${WINE_VERSION}"/patches/ntdll-Syscall_Emulation/definition 1>/dev/null; then
 				STAGING_ARGS="--all -W ntdll-Syscall_Emulation"
 			fi
 		fi
@@ -296,7 +304,6 @@ else
 fi
 
 if [ ! -d wine ]; then
-	clear
 	echo "No Wine source code found!"
 	echo "Make sure that the correct Wine version is specified."
 	exit 1
